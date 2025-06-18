@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 232 14% 21%; /* Dark Gray #282A3A */
+    --foreground: 210 40% 98%; /* Light Gray/White */
+
+    --muted: 232 14% 30%;
+    --muted-foreground: 210 40% 70%; /* Lighter than default muted-foreground */
+
+    --popover: 232 14% 25%;
+    --popover-foreground: 210 40% 98%;
+
+    --card: 232 14% 25%; /* Slightly lighter than background */
+    --card-foreground: 210 40% 98%;
+
+    --border: 232 14% 30%;
+    --input: 232 14% 30%;
+
+    --primary: 181 100% 74%; /* Electric Blue #7DF9FF */
+    --primary-foreground: 181 100% 10%; /* Dark Teal for contrast */
+
+    --secondary: 232 14% 45%; /* A lighter shade of gray for secondary elements */
+    --secondary-foreground: 181 100% 10%;
+
+    --accent: 180 100% 50%; /* Cyan #00FFFF */
+    --accent-foreground: 180 100% 10%; /* Dark Teal for contrast */
+
+    --destructive: 0 72% 51%; /* Keep a standard destructive color */
+    --destructive-foreground: 0 0% 98%;
+
+    --ring: 181 100% 74%; /* Electric Blue for focus rings */
+    --radius: 0.5rem;
+
+    /* Chart colors can be adjusted or kept as is if not specified */
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    
+    /* Sidebar specific colors - updated to match the dark theme */
+    --sidebar-background: 232 14% 18%; /* Slightly darker than main background */
+    --sidebar-foreground: 210 40% 90%;
+    --sidebar-primary: 181 100% 74%; /* Electric Blue */
+    --sidebar-primary-foreground: 181 100% 10%;
+    --sidebar-accent: 180 100% 50%; /* Cyan */
+    --sidebar-accent-foreground: 180 100% 10%;
+    --sidebar-border: 232 14% 25%;
+    --sidebar-ring: 181 100% 74%;
+  }
+
+  /* The .dark class can be a duplicate of :root if the app is always dark,
+     or define an alternative dark theme if toggling is intended.
+     Forcing a single dark theme as per prompt. */
+  .dark {
+    --background: 232 14% 21%;
+    --foreground: 210 40% 98%;
+    --muted: 232 14% 30%;
+    --muted-foreground: 210 40% 70%;
+    --popover: 232 14% 25%;
+    --popover-foreground: 210 40% 98%;
+    --card: 232 14% 25%;
+    --card-foreground: 210 40% 98%;
+    --border: 232 14% 30%;
+    --input: 232 14% 30%;
+    --primary: 181 100% 74%;
+    --primary-foreground: 181 100% 10%;
+    --secondary: 232 14% 45%;
+    --secondary-foreground: 181 100% 10%;
+    --accent: 180 100% 50%;
+    --accent-foreground: 180 100% 10%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --ring: 181 100% 74%;
+    
+    --sidebar-background: 232 14% 18%;
+    --sidebar-foreground: 210 40% 90%;
+    --sidebar-primary: 181 100% 74%;
+    --sidebar-primary-foreground: 181 100% 10%;
+    --sidebar-accent: 180 100% 50%;
+    --sidebar-accent-foreground: 180 100% 10%;
+    --sidebar-border: 232 14% 25%;
+    --sidebar-ring: 181 100% 74%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Apply Inter font by default to body */
+    font-family: var(--font-inter), sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    /* Apply Space Grotesk to headlines */
+    font-family: var(--font-space-grotesk), sans-serif;
+  }
+}
+
+@layer utilities {
+  .fade-in {
+    animation: fadeInAnimation ease 0.5s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+  }
+
+  @keyframes fadeInAnimation {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0px);
+    }
+  }
+}

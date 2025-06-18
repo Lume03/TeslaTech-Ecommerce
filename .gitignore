@@ -1,0 +1,79 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# Dependencies
+/node_modules
+/.pnp
+.pnp.*
+**/node_modules/
+
+# Build output
+/build
+/out/
+/dist/
+
+# Next.js
+/.next/
+.next/
+**//.next/
+**/.next/cache/
+**/webpack/
+
+# Firebase cache y archivos temporales (MUY IMPORTANTE)
+/.firebase/
+**/.firebase/
+firebase-debug.log
+firestore-debug.log
+**/firebase-debug.log
+**/firestore-debug.log
+
+# Environment variables (SECRETO)
+.env*
+!.env.example
+!.env.template
+
+# Genkit (Project IDX)
+.genkit/
+
+# Testing
+/coverage
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Misc
+.DS_Store
+*.pem
+
+# Cache directories
+.npm
+.eslintcache
+.parcel-cache
+.cache/
+
+# Temporary folders
+tmp/
+temp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
