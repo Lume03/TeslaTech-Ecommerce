@@ -6,31 +6,19 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, Plus, Minus, ShoppingBag, Loader2, CreditCard, ExternalLink } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, Loader2, CreditCard } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
-// Removed: import { createPreference } from '@/app/actions/mercadopagoActions';
 import { createStripeCheckoutSession } from '@/app/actions/stripeActions';
 import type { CartItem } from '@/contexts/AppContext';
 
 export default function CartPage() {
-  const { cart, updateCartQuantity, removeFromCart, getCartTotal, clearCart, currentUser, userProfile, isProfileComplete } = useAppContext();
+  const { cart, updateCartQuantity, removeFromCart, getCartTotal, clearCart, currentUser, userProfile, isProfileComplete, isAdmin } = useAppContext();
   const router = useRouter();
   const { toast } = useToast();
-  // Removed: const [isProcessingMercadoPago, setIsProcessingMercadoPago] = useState(false);
   const [isProcessingStripe, setIsProcessingStripe] = useState(false);
-  const [stripeRedirectUrl, setStripeRedirectUrl] = useState<string | null>(null);
-
-
-  const handleQuantityChange = (productId: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeFromCart(productId);
-    } else {
-      updateCartQuantity(productId, newQuantity);
-    }
-  };
 
   const commonCheckoutValidation = useCallback(() => {
     if (cart.length === 0) {
@@ -64,14 +52,32 @@ export default function CartPage() {
     return true;
   }, [cart.length, currentUser, userProfile, isProfileComplete, toast, router]);
 
+  if (isAdmin) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <ShoppingBag className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+        <h1 className="text-3xl font-headline font-bold mb-4">Acceso Restringido</h1>
+        <p className="text-muted-foreground mb-6">Los administradores no tienen un carrito de compras.</p>
+        <Link href="/admin" passHref>
+          <Button size="lg">Ir al Panel de Administración</Button>
+        </Link>
+      </div>
+    );
+  }
+
+
+  const handleQuantityChange = (productId: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      removeFromCart(productId);
+    } else {
+      updateCartQuantity(productId, newQuantity);
+    }
+  };
 
   const handleProceedWithStripe = async () => {
-    console.log("Stripe: handleProceedWithStripe called");
     if (!commonCheckoutValidation()) {
-      console.log("Stripe: commonCheckoutValidation failed");
       return;
     }
-    setStripeRedirectUrl(null);
     setIsProcessingStripe(true);
     try {
         const payerData = userProfile ? { email: userProfile.email } : undefined;
@@ -82,37 +88,28 @@ export default function CartPage() {
             quantity: item.quantity,
             price: item.price,
             category: item.category,
-            categorySlug: item.categorySlug, // Added categorySlug
+            categorySlug: item.categorySlug,
             image: item.image,
-            // Include other optional Product fields if Stripe uses them or if your CartItem type needs them
-            // For example:
-            // description: item.description,
-            // brand: item.brand,
         }));
 
-        console.log("Stripe: Calling createStripeCheckoutSession with items:", itemsForStripe, "and payerData:", payerData);
         const response = await createStripeCheckoutSession(itemsForStripe, payerData);
-        console.log("Stripe: Response from createStripeCheckoutSession:", response);
-
-        if (response.success && response.sessionId && response.sessionUrl) {
-            console.log("Stripe: Session URL obtained:", response.sessionUrl);
-            setStripeRedirectUrl(response.sessionUrl);
+        
+        if (response.success && response.sessionUrl) {
+            window.location.href = response.sessionUrl;
         } else {
-            console.error("Stripe: Checkout session creation failed or URL missing. Response:", response);
             toast({
               title: "Error al Procesar con Stripe",
               description: response.error || "No se pudo iniciar la sesión de pago de Stripe.",
               variant: "destructive",
             });
+            setIsProcessingStripe(false);
         }
     } catch (error: any) {
-        console.error("Stripe Checkout error (client-side catch):", error.message, error);
         toast({
             title: "Error Inesperado con Stripe",
             description: error.message || "Ocurrió un error al intentar procesar tu pago con Stripe.",
             variant: "destructive",
         });
-    } finally {
         setIsProcessingStripe(false);
     }
   };
@@ -146,7 +143,7 @@ export default function CartPage() {
                   height={100} 
                   className="rounded-md object-cover w-24 h-24 sm:w-32 sm:h-32"
                   data-ai-hint={`${item.category} product small`}
-                  unoptimized // <-- CAMBIO AÑADIDO
+                  unoptimized
                 />
               </Link>
               <div className="flex-grow">
@@ -177,8 +174,8 @@ export default function CartPage() {
             </Card>
           ))}
            {cart.length > 0 && (
-             <Button variant="outline" onClick={clearCart} className="mt-4 text-destructive hover:bg-destructive/10">
-                <Trash2 size={16} className="mr-2"/> Limpiar Carrito
+             <Button variant="outline" onClick={() => clearCart()} className="mt-4 text-destructive hover:bg-destructive/10">
+ <Trash2 size={16} className="mr-2"/> Limpiar Carrito
              </Button>
            )}
         </div>
@@ -204,40 +201,20 @@ export default function CartPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-3">
-              {!stripeRedirectUrl ? (
-                <>
-                  {/* MercadoPago button removed */}
-                  <Button 
-                    size="lg" 
-                    variant="outline" 
-                    className="w-full" 
-                    onClick={handleProceedWithStripe}
-                    disabled={isProcessingStripe /* || isProcessingMercadoPago */}
-                  >
-                    {isProcessingStripe ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <CreditCard className="mr-2 h-5 w-5" />
-                    )}
-                    Pagar con Tarjeta (Stripe)
-                  </Button>
-                </>
-              ) : (
-                <div className="w-full space-y-3 text-center">
-                   <p className="text-sm text-muted-foreground">Tu sesión de pago con Stripe está lista.</p>
-                   <a
-                    href={stripeRedirectUrl}
-                    target="_top" 
-                    className="inline-flex items-center justify-center w-full h-11 px-8 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90"
-                   >
-                     <ExternalLink className="mr-2 h-5 w-5" />
-                     Continuar al Pago Seguro con Stripe
-                   </a>
-                   <Button variant="link" onClick={() => setStripeRedirectUrl(null)} className="text-sm">
-                     Cancelar y elegir otro método
-                   </Button>
-                </div>
-              )}
+              <Button 
+                size="lg" 
+                variant="default" 
+                className="w-full" 
+                onClick={handleProceedWithStripe}
+                disabled={isProcessingStripe}
+              >
+                {isProcessingStripe ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CreditCard className="mr-2 h-5 w-5" />
+                )}
+                Pagar con Tarjeta
+              </Button>
             </CardFooter>
           </Card>
         </aside>
@@ -245,4 +222,3 @@ export default function CartPage() {
     </div>
   );
 }
-

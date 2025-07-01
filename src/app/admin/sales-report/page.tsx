@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from "@/components/ui/label";
-import { CalendarIcon, Loader2, FileText } from 'lucide-react';
-import { format as formatDateFns, isValid as isValidDate } from 'date-fns';
+import { CalendarIcon, Loader2, FileText, Download } from 'lucide-react';
+import { format as formatDateFns } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { getSalesReportAction, SalesReportData, SalesReportFilterType, SalesReportItemDetail } from '../actions';
+import { getSalesReportAction, SalesReportData } from '../actions';
 import { cn } from '@/lib/utils';
 import {
   Table,
@@ -20,6 +20,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import Link from 'next/link';
+
+// Add type declaration for jspdf-autotable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 
 const initialReportData: SalesReportData = {
@@ -27,7 +37,7 @@ const initialReportData: SalesReportData = {
   numberOfOrders: 0,
   averageOrderValue: 0,
   reportPeriodDescription: "Selecciona un período para ver el reporte",
-  detailedItems: [],
+  lineItems: [],
 };
 
 export default function SalesReportPage() {
@@ -35,11 +45,11 @@ export default function SalesReportPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const [activeFilter, setActiveFilter] = useState<SalesReportFilterType>('thisMonth');
+  const [activeFilter, setActiveFilter] = useState<any>('thisMonth');
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
 
-  const fetchReport = useCallback(async (filter: SalesReportFilterType, startDate?: Date, endDate?: Date) => {
+  const fetchReport = useCallback(async (filter: any, startDate?: Date, endDate?: Date) => {
     setLoading(true);
     setError(null);
     try {
@@ -65,7 +75,7 @@ export default function SalesReportPage() {
     }
   }, [fetchReport, activeFilter, customStartDate, customEndDate]);
 
-  const handleFilterClick = (filterType: SalesReportFilterType) => {
+  const handleFilterClick = (filterType: any) => {
     setActiveFilter(filterType);
     setCustomStartDate(undefined);
     setCustomEndDate(undefined);
@@ -82,8 +92,54 @@ export default function SalesReportPage() {
       setError("Por favor, selecciona una fecha de inicio.");
     }
   };
+  
+  const handleDownloadPdf = () => {
+    if (!reportData || reportData.lineItems.length === 0) {
+      alert("No hay datos para descargar.");
+      return;
+    }
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text("Reporte de Ventas", 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(reportData.reportPeriodDescription, 14, 30);
+    
+    const summaryText = `Ventas Totales: S/ ${reportData.totalSales.toFixed(2)}  |  Pedidos: ${reportData.numberOfOrders}  |  Ticket Promedio: S/ ${reportData.averageOrderValue.toFixed(2)}`;
+    doc.setFontSize(10);
+    doc.text(summaryText, 14, 40);
 
-  const filterButtons: { label: string; type: SalesReportFilterType }[] = [
+    const tableColumn = ["Código Venta", "Fecha y Hora", "Producto", "Cant.", "P. Unit.", "Ingreso"];
+    const tableRows: any[] = [];
+
+    reportData.lineItems.forEach(item => {
+      const itemData = [
+        item.orderId,
+        formatDateFns(new Date(item.orderDate), "dd/MM/yy HH:mm", { locale: es }),
+        item.name,
+        item.quantitySold,
+        `S/ ${item.unitPrice.toFixed(2)}`,
+        `S/ ${item.totalRevenueFromProduct.toFixed(2)}`
+      ];
+      tableRows.push(itemData);
+    });
+
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 50,
+      theme: 'grid',
+      headStyles: { fillColor: [40, 42, 58] }, // #282A3A
+    });
+
+    const date = new Date();
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    doc.save(`Reporte_de_Ventas_${dateStr}.pdf`);
+  };
+
+  const filterButtons: { label: string; type: any }[] = [
     { label: "Hoy", type: "today" },
     { label: "Ayer", type: "yesterday" },
     { label: "Últimos 7 Días", type: "last7days" },
@@ -95,10 +151,16 @@ export default function SalesReportPage() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <h1 className="text-3xl font-headline font-bold">Reporte de Ventas</h1>
-         <Button onClick={() => fetchReport(activeFilter, customStartDate, customEndDate || customStartDate)} disabled={loading} variant="outline">
-          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
-          Actualizar Reporte
-        </Button>
+        <div className="flex gap-2">
+            <Button onClick={() => fetchReport(activeFilter, customStartDate, customEndDate || customStartDate)} disabled={loading} variant="outline">
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+            Actualizar Reporte
+            </Button>
+            <Button onClick={handleDownloadPdf} disabled={loading || !reportData || reportData.lineItems.length === 0}>
+                <Download className="mr-2 h-4 w-4" />
+                Descargar PDF
+            </Button>
+        </div>
       </div>
 
       <Card>
@@ -209,25 +271,31 @@ export default function SalesReportPage() {
                 </div>
             </CardContent>
             
-            {reportData.detailedItems && reportData.detailedItems.length > 0 && (
+            {reportData.lineItems && reportData.lineItems.length > 0 ? (
                 <CardContent className="pt-6">
                     <h3 className="text-xl font-semibold mb-4">Detalle de Productos Vendidos</h3>
                     <ScrollArea className="h-[400px] w-full rounded-md border">
                         <Table>
                             <TableHeader className="sticky top-0 bg-background">
                                 <TableRow>
+                                <TableHead>Código de Venta</TableHead>
+                                <TableHead>Fecha y Hora</TableHead>
                                 <TableHead>Producto</TableHead>
-                                <TableHead>Categoría</TableHead>
                                 <TableHead className="text-center">Cant. Vendida</TableHead>
                                 <TableHead className="text-right">Precio Unit.</TableHead>
                                 <TableHead className="text-right">Ingreso Total</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {reportData.detailedItems.map((item) => (
-                                <TableRow key={item.productId}>
+                                {reportData.lineItems.map((item, index) => (
+                                <TableRow key={`${item.orderId}-${item.productId}-${index}`}>
+                                    <TableCell className="font-mono text-xs">
+                                        <Link href={`/admin/orders?search=${item.orderId}`} className="text-primary hover:underline" title={`Ver pedido ${item.orderId}`}>
+                                            {item.orderId.substring(0, 8)}...
+                                        </Link>
+                                    </TableCell>
+                                    <TableCell className="text-xs">{formatDateFns(new Date(item.orderDate), "dd/MM/yy HH:mm", { locale: es })}</TableCell>
                                     <TableCell className="font-medium">{item.name}</TableCell>
-                                    <TableCell>{item.category}</TableCell>
                                     <TableCell className="text-center">{item.quantitySold}</TableCell>
                                     <TableCell className="text-right">S/ {item.unitPrice.toFixed(2)}</TableCell>
                                     <TableCell className="text-right">S/ {item.totalRevenueFromProduct.toFixed(2)}</TableCell>
@@ -237,6 +305,10 @@ export default function SalesReportPage() {
                         </Table>
                     </ScrollArea>
                 </CardContent>
+            ) : (
+                 <CardContent>
+                    <p className="text-center text-muted-foreground py-10">No hay datos de ventas para el período seleccionado.</p>
+                 </CardContent>
             )}
              <CardContent>
                <p className="text-xs text-muted-foreground pt-4">

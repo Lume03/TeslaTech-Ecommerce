@@ -1,29 +1,30 @@
-
 import ProductForm from '@/app/admin/products/components/ProductForm';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getProductByIdFromDB, Product } from '@/lib/data';
+import type { Product } from '@/lib/data';
+import { getFirestoreAdmin } from '@/lib/firebase/admin';
 import { notFound } from 'next/navigation';
 
-// The error indicates an external 'PageProps' type is expecting params to be a Promise.
-// We will use 'any' for the incoming props to bypass the faulty external constraint,
-// and then assert types internally for safety within this component.
-export default async function EditProductPage(props: any) {
-  // Assert the types we expect internally
-  const params = props.params as { id: string };
-  // Optionally, assert searchParams if you use them, though the error focuses on 'params'.
-  // const searchParams = props.searchParams as { [key: string]: string | string[] | undefined } | undefined;
-
+export default async function Page({ params }: { params: any }) {
   const { id } = params;
-  const product = await getProductByIdFromDB(id);
+  
+  const firestore = getFirestoreAdmin();
+  const productDoc = await firestore.collection('products').doc(id).get();
 
-  if (!product) {
+  if (!productDoc.exists) {
     notFound();
   }
 
-  // Ensure product is a plain object for client component consumption
+  const product = { id: productDoc.id, ...productDoc.data() } as Product;
+
   const plainProduct: Product = JSON.parse(JSON.stringify(product));
 
   return (
@@ -36,19 +37,25 @@ export default async function EditProductPage(props: any) {
         </Link>
         <div>
           <h1 className="text-2xl font-headline font-bold">Editar Producto</h1>
-          <p className="text-muted-foreground">Modifica los detalles del producto.</p>
+          <p className="text-muted-foreground">
+            Modifica los detalles del producto.
+          </p>
         </div>
       </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Información del Producto: {plainProduct.name}</CardTitle>
           <CardDescription>Actualiza los detalles necesarios.</CardDescription>
         </CardHeader>
         <CardContent>
-          <ProductForm initialData={plainProduct} productId={id} isEditing={true} />
+          <ProductForm
+            initialData={plainProduct}
+            productId={id}
+            isEditing={true}
+          />
         </CardContent>
       </Card>
     </div>
   );
 }
-

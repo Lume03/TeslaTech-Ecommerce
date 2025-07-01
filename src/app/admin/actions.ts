@@ -1,7 +1,7 @@
 
 "use server";
-import adminDefault, { getFirestoreAdmin } from '@/lib/firebase/admin';
-import type { Order, Product, OrderStatus, OrderItem } from '@/lib/data'; // OrderItem added
+import { getFirestoreAdmin } from '@/lib/firebase/admin';
+import type { Order, Product, OrderStatus, Complaint } from '@/lib/data';
 import { categories } from '@/lib/data'; 
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'; 
 import { 
@@ -12,15 +12,16 @@ import {
   format as formatDateFns
 } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { revalidatePath } from 'next/cache';
 
 
-export async function getAdminDashboardStatsAction(): Promise<{ totalSales: number; totalStock: number; newOrdersCount: number }> {
-  const firestore = getFirestoreAdmin();
-  let totalSales = 0;
-  let totalStock = 0;
-  let newOrdersCount = 0;
-
+export async function getAdminDashboardStatsAction(): Promise<{ totalSales: number; totalStock: number; newOrdersCount: number; }> {
   try {
+    const firestore = getFirestoreAdmin();
+    let totalSales = 0;
+    let totalStock = 0;
+    let newOrdersCount = 0;
+
     const deliveredOrdersQuery = firestore.collection('orders').where('orderStatus', '==', 'delivered');
     const deliveredOrdersSnapshot = await deliveredOrdersQuery.get();
     deliveredOrdersSnapshot.forEach(doc => {
@@ -41,13 +42,18 @@ export async function getAdminDashboardStatsAction(): Promise<{ totalSales: numb
     const newOrdersQuery = firestore.collection('orders').where('orderStatus', 'in', ['pending_shipment', 'payment_pending']);
     const newOrdersSnapshot = await newOrdersQuery.get();
     newOrdersCount = newOrdersSnapshot.size;
+    
+    return { totalSales, totalStock, newOrdersCount };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in getAdminDashboardStatsAction:", error);
-    return { totalSales: 0, totalStock: 0, newOrdersCount: 0 };
+    if (error.code === 'FAILED_PRECONDITION' && error.message.includes('index')) {
+        const helpfulMessage = "La consulta de estadísticas requiere un índice de Firestore. Revisa los logs del servidor para ver el enlace y crearlo. Generalmente es para 'orders' en el campo 'orderStatus'.";
+        console.error(helpfulMessage);
+        throw new Error(helpfulMessage);
+    }
+    throw new Error(`No se pudieron obtener las estadísticas del panel: ${error.message}`);
   }
-
-  return { totalSales, totalStock, newOrdersCount };
 }
 
 export interface SalesByCategoryData {
@@ -56,10 +62,10 @@ export interface SalesByCategoryData {
 }
 
 export async function getSalesByCategoryAction(): Promise<SalesByCategoryData[]> {
-  const firestore = getFirestoreAdmin();
-  const salesMap = new Map<string, number>();
-
   try {
+    const firestore = getFirestoreAdmin();
+    const salesMap = new Map<string, number>();
+
     const deliveredOrdersQuery = firestore.collection('orders').where('orderStatus', '==', 'delivered');
     const deliveredOrdersSnapshot = await deliveredOrdersQuery.get();
 
@@ -77,9 +83,14 @@ export async function getSalesByCategoryAction(): Promise<SalesByCategoryData[]>
       
     return salesByCategory;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in getSalesByCategoryAction:", error);
-    return [];
+    if (error.code === 'FAILED_PRECONDITION' && error.message.includes('index')) {
+        const helpfulMessage = "La consulta de ventas por categoría requiere un índice en Firestore (campo 'orderStatus' en 'orders'). Revisa los logs del servidor.";
+        console.error(helpfulMessage);
+        throw new Error(helpfulMessage);
+    }
+    throw new Error(`No se pudieron obtener las ventas por categoría: ${error.message}`);
   }
 }
 
@@ -89,10 +100,10 @@ export interface TopSellingProductData {
 }
 
 export async function getTopSellingProductsAction(limit: number = 5): Promise<TopSellingProductData[]> {
-  const firestore = getFirestoreAdmin();
-  const productSalesMap = new Map<string, { totalSales: number; name: string }>();
-
   try {
+    const firestore = getFirestoreAdmin();
+    const productSalesMap = new Map<string, { totalSales: number; name: string }>();
+
     const deliveredOrdersQuery = firestore.collection('orders').where('orderStatus', '==', 'delivered');
     const deliveredOrdersSnapshot = await deliveredOrdersQuery.get();
 
@@ -115,15 +126,22 @@ export async function getTopSellingProductsAction(limit: number = 5): Promise<To
       
     return topProducts;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in getTopSellingProductsAction:", error);
-    return [];
+    if (error.code === 'FAILED_PRECONDITION' && error.message.includes('index')) {
+        const helpfulMessage = "La consulta de productos más vendidos requiere un índice en Firestore (campo 'orderStatus' en 'orders'). Revisa los logs del servidor.";
+        console.error(helpfulMessage);
+        throw new Error(helpfulMessage);
+    }
+    throw new Error(`No se pudieron obtener los productos más vendidos: ${error.message}`);
   }
 }
 
 export type SalesReportFilterType = 'today' | 'yesterday' | 'last7days' | 'thisMonth' | 'lastMonth' | 'customRange';
 
-export interface SalesReportItemDetail {
+export interface SalesReportLineItem {
+  orderId: string;
+  orderDate: Date; // Converted from Timestamp in the action
   productId: string;
   name: string;
   category: string;
@@ -137,7 +155,7 @@ export interface SalesReportData {
   numberOfOrders: number;
   averageOrderValue: number;
   reportPeriodDescription: string;
-  detailedItems: SalesReportItemDetail[];
+  lineItems: SalesReportLineItem[];
 }
 
 export async function getSalesReportAction(
@@ -145,7 +163,6 @@ export async function getSalesReportAction(
   customStartDateStr?: string,
   customEndDateStr?: string
 ): Promise<SalesReportData> {
-  const firestore = getFirestoreAdmin();
   const now = new Date();
   let startDate: Date;
   let endDate: Date;
@@ -154,6 +171,7 @@ export async function getSalesReportAction(
   console.log(`getSalesReportAction called with: filterType=${filterType}, customStart=${customStartDateStr}, customEnd=${customEndDateStr}`);
 
   try {
+    const firestore = getFirestoreAdmin();
     switch (filterType) {
       case 'today':
         startDate = startOfDay(now);
@@ -204,60 +222,114 @@ export async function getSalesReportAction(
     console.log(`Querying orders between ${startDate.toISOString()} and ${endDate.toISOString()}`);
 
     let totalSales = 0;
-    let numberOfOrders = 0;
-    const productSalesMap = new Map<string, SalesReportItemDetail>();
+    const lineItems: SalesReportLineItem[] = [];
+    const processedOrderIds = new Set<string>();
 
     const ordersQuery = firestore.collection('orders')
       .where('orderStatus', '==', 'delivered')
       .where('createdAt', '>=', Timestamp.fromDate(startDate)) 
-      .where('createdAt', '<=', Timestamp.fromDate(endDate)); 
+      .where('createdAt', '<=', Timestamp.fromDate(endDate));
 
     const snapshot = await ordersQuery.get();
     
-    snapshot.forEach(doc => {
+    // Sort in memory as Firestore requires an index for ordering on a different field than the range filter
+    const sortedDocs = snapshot.docs.sort((a, b) => {
+      const timeA = (a.data().createdAt as Timestamp).toMillis();
+      const timeB = (b.data().createdAt as Timestamp).toMillis();
+      return timeB - timeA; // Descending
+    });
+
+    sortedDocs.forEach(doc => {
       const order = doc.data() as Order;
-      totalSales += order.totalAmount;
-      numberOfOrders++;
+      
+      if (!processedOrderIds.has(order.id)) {
+        totalSales += order.totalAmount;
+        processedOrderIds.add(order.id);
+      }
+
+      const orderDate = (doc.data().createdAt as Timestamp).toDate();
 
       order.items.forEach(item => {
-        const existingItem = productSalesMap.get(item.id);
-        if (existingItem) {
-          existingItem.quantitySold += item.quantity;
-          existingItem.totalRevenueFromProduct += item.price * item.quantity;
-        } else {
-          productSalesMap.set(item.id, {
-            productId: item.id,
-            name: item.name,
-            category: item.category,
-            quantitySold: item.quantity,
-            unitPrice: item.price,
-            totalRevenueFromProduct: item.price * item.quantity,
-          });
-        }
+        lineItems.push({
+          orderId: order.id,
+          orderDate: orderDate,
+          productId: item.id,
+          name: item.name,
+          category: item.category,
+          quantitySold: item.quantity,
+          unitPrice: item.price,
+          totalRevenueFromProduct: item.price * item.quantity,
+        });
       });
     });
 
-    console.log(`Found ${numberOfOrders} orders with total sales S/${totalSales.toFixed(2)} for period: ${reportPeriodDescription}`);
-    console.log(`Detailed items map size: ${productSalesMap.size}`);
+    const numberOfOrders = processedOrderIds.size;
 
-    const detailedItems = Array.from(productSalesMap.values()).sort((a, b) => b.totalRevenueFromProduct - a.totalRevenueFromProduct);
+    console.log(`Found ${lineItems.length} line items from ${numberOfOrders} orders with total sales S/${totalSales.toFixed(2)} for period: ${reportPeriodDescription}`);
 
     return {
       totalSales,
       numberOfOrders,
       averageOrderValue: numberOfOrders > 0 ? totalSales / numberOfOrders : 0,
       reportPeriodDescription,
-      detailedItems,
+      lineItems,
     };
 
   } catch (error: any) {
     console.error("Error in getSalesReportAction:", error.message, error.code, error.stack);
+    if (error.code === 'FAILED_PRECONDITION' && error.message.includes('The query requires an index')) {
+       return { 
+        totalSales: 0, 
+        numberOfOrders: 0, 
+        averageOrderValue: 0, 
+        reportPeriodDescription: `Error al cargar datos: La base de datos requiere un índice para esta consulta. Por favor, crea el índice en Firebase Firestore para 'orders' con los campos 'orderStatus' (asc) y 'createdAt' (desc), o contacta al desarrollador.`,
+        lineItems: [],
+      };
+    }
     return { 
       totalSales: 0, 
       numberOfOrders: 0, 
       averageOrderValue: 0, 
       reportPeriodDescription: `Error al cargar datos: ${error.message || 'Error desconocido del servidor.'}`,
-      detailedItems: [],
+      lineItems: [],
     };
+  }
+}
+
+export async function getComplaintsAdminAction(): Promise<Complaint[]> {
+  const complaints: Complaint[] = [];
+  try {
+    const firestore = getFirestoreAdmin();
+    const complaintsQuery = firestore.collection('complaints').orderBy('createdAt', 'desc');
+    const snapshot = await complaintsQuery.get();
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const createdAtTimestamp = data.createdAt;
+      
+      let createdAtDate: Date | null = null;
+      if (createdAtTimestamp && typeof createdAtTimestamp.toDate === 'function') {
+        createdAtDate = createdAtTimestamp.toDate();
+      } else if (createdAtTimestamp) {
+        // Fallback for serialized timestamp
+        try {
+          createdAtDate = new Date(createdAtTimestamp.seconds * 1000);
+        } catch (e) {
+          console.warn("Could not convert complaint createdAt timestamp:", createdAtTimestamp);
+        }
+      }
+
+      complaints.push({
+        id: doc.id,
+        ...data,
+        createdAt: createdAtDate, // Convert timestamp to Date
+      } as Complaint);
+    });
+    
+    return complaints;
+
+  } catch (error) {
+    console.error("Error in getComplaintsAdminAction:", error);
+    return [];
   }
 }

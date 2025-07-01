@@ -17,7 +17,7 @@ export default function ProductDetailPage() {
   const params = useParams();
   const id = typeof params.id === 'string' ? params.id : '';
   const [quantity, setQuantity] = useState(1);
-  const { addToCart, addToWishlist, isInWishlist, removeFromWishlist } = useAppContext();
+  const { addToCart, addToWishlist, isInWishlist, removeFromWishlist, isAdmin } = useAppContext();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -108,7 +108,7 @@ export default function ProductDetailPage() {
               data-ai-hint={`${product.categorySlug} detail`}
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               priority
-              unoptimized // <-- CAMBIO AÑADIDO
+              unoptimized
             />
           </div>
         </div>
@@ -147,29 +147,31 @@ export default function ProductDetailPage() {
 
           <p className="text-4xl font-bold text-primary">S/{product.price.toFixed(2)}</p>
 
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center border rounded-md">
-              <Button variant="ghost" size="icon" onClick={() => setQuantity(Math.max(1, quantity - 1))} className="rounded-r-none">
-                <Minus size={16} />
+          {!isAdmin && (
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center border rounded-md">
+                <Button variant="ghost" size="icon" onClick={() => setQuantity(Math.max(1, quantity - 1))} className="rounded-r-none">
+                  <Minus size={16} />
+                </Button>
+                <Input
+                  type="number"
+                  value={quantity}
+                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-16 h-10 text-center border-y-0 border-x rounded-none focus-visible:ring-0"
+                  min="1"
+                />
+                <Button variant="ghost" size="icon" onClick={() => setQuantity(quantity + 1)} className="rounded-l-none">
+                  <Plus size={16} />
+                </Button>
+              </div>
+              <Button size="lg" className="flex-grow" onClick={() => addToCart(product, quantity)} disabled={!product.stock || product.stock < 1}>
+                <ShoppingCart size={20} className="mr-2" /> {!product.stock || product.stock < 1 ? 'Agotado' : 'Añadir al Carrito'}
               </Button>
-              <Input
-                type="number"
-                value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-16 h-10 text-center border-y-0 border-x rounded-none focus-visible:ring-0"
-                min="1"
-              />
-              <Button variant="ghost" size="icon" onClick={() => setQuantity(quantity + 1)} className="rounded-l-none">
-                <Plus size={16} />
+              <Button variant="outline" size="icon" onClick={handleWishlistToggle} aria-label={isFavorited ? "Quitar de la lista de deseos" : "Añadir a la lista de deseos"}>
+                <Heart className={isFavorited ? "text-red-500 fill-current" : ""} size={24} />
               </Button>
             </div>
-            <Button size="lg" className="flex-grow" onClick={() => addToCart(product, quantity)} disabled={!product.stock || product.stock < 1}>
-              <ShoppingCart size={20} className="mr-2" /> {!product.stock || product.stock < 1 ? 'Agotado' : 'Añadir al Carrito'}
-            </Button>
-            <Button variant="outline" size="icon" onClick={handleWishlistToggle} aria-label={isFavorited ? "Quitar de la lista de deseos" : "Añadir a la lista de deseos"}>
-              <Heart className={isFavorited ? "text-red-500 fill-current" : ""} size={24} />
-            </Button>
-          </div>
+          )}
 
           <div className="space-y-3 pt-4 text-sm">
             <div className={`flex items-center ${product.stock && product.stock > 0 ? 'text-green-500' : 'text-destructive'}`}>

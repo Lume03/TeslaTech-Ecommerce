@@ -40,7 +40,7 @@ PaginationItem.displayName = "PaginationItem"
 type PaginationLinkProps = {
   isActive?: boolean
 } & Pick<ButtonProps, "size"> &
-  React.ComponentProps<typeof Button> // Use Button directly to allow onClick
+  React.ComponentProps<typeof Button>
 
 const PaginationLink = ({
   className,
@@ -59,34 +59,32 @@ const PaginationLink = ({
 PaginationLink.displayName = "PaginationLink"
 
 const PaginationPrevious = React.forwardRef<
-  HTMLButtonElement, // Changed from HTMLAnchorElement
+  HTMLButtonElement,
   React.ComponentProps<typeof PaginationLink>
 >(({ className, ...props }, ref) => (
   <PaginationLink
-    ref={ref} // Pass ref here
+    ref={ref}
     aria-label="Go to previous page"
-    size="icon" // Default size for prev/next
-    className={cn("gap-1", className)} // Removed pl-2.5
+    size="icon"
+    className={cn(className)}
     {...props}
   >
     <ChevronLeft className="h-4 w-4" />
-    {/* <span>Previous</span> // Removed for icon-only by default */}
   </PaginationLink>
 ))
 PaginationPrevious.displayName = "PaginationPrevious"
 
 const PaginationNext = React.forwardRef<
-  HTMLButtonElement, // Changed from HTMLAnchorElement
+  HTMLButtonElement,
   React.ComponentProps<typeof PaginationLink>
 >(({ className, ...props }, ref) => (
   <PaginationLink
-    ref={ref} // Pass ref here
+    ref={ref}
     aria-label="Go to next page"
-    size="icon" // Default size for prev/next
-    className={cn("gap-1", className)} // Removed pr-2.5
+    size="icon"
+    className={cn(className)}
     {...props}
   >
-    {/* <span>Next</span> // Removed for icon-only by default */}
     <ChevronRight className="h-4 w-4" />
   </PaginationLink>
 ))
@@ -116,5 +114,3 @@ export {
   PaginationNext,
   PaginationPrevious,
 }
-
-    

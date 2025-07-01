@@ -1,3 +1,4 @@
+
 "use client";
 import Image from 'next/image';
 import Link from 'next/link';
@@ -7,14 +8,14 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Heart, ShoppingCart, Star } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { Badge } from '@/components/ui/badge';
-import React, { memo } from 'react';
+import React from 'react';
 
 interface ProductCardProps {
   product: Product;
 }
 
 const ProductCardComponent = ({ product }: ProductCardProps) => {
-  const { addToCart, addToWishlist, isInWishlist, removeFromWishlist } = useAppContext();
+  const { addToCart, addToWishlist, isInWishlist, removeFromWishlist, isAdmin } = useAppContext();
   const isFavorited = isInWishlist(product.id);
 
   const handleWishlistToggle = () => {
@@ -37,22 +38,24 @@ const ProductCardComponent = ({ product }: ProductCardProps) => {
               height={300}
               className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300 ease-in-out"
               data-ai-hint={`${product.category} product`}
-              unoptimized // <-- CAMBIO AÑADIDO
+              unoptimized
             />
           </div>
         </Link>
         {product.isBestseller && (
           <Badge variant="destructive" className="absolute top-2 left-2 bg-accent text-accent-foreground">Bestseller</Badge>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 right-2 bg-card/70 hover:bg-card"
-          onClick={handleWishlistToggle}
-          aria-label={isFavorited ? "Remove from wishlist" : "Add to wishlist"}
-        >
-          <Heart className={isFavorited ? "text-red-500 fill-current" : "text-muted-foreground"} size={20} />
-        </Button>
+        {!isAdmin && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-2 right-2 bg-card/70 hover:bg-card"
+            onClick={handleWishlistToggle}
+            aria-label={isFavorited ? "Remove from wishlist" : "Add to wishlist"}
+          >
+            <Heart className={isFavorited ? "text-red-500 fill-current" : "text-muted-foreground"} size={20} />
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="p-4 space-y-2">
         <CardTitle className="text-lg font-headline leading-tight truncate group-hover:text-primary">
@@ -72,15 +75,19 @@ const ProductCardComponent = ({ product }: ProductCardProps) => {
         </div>
       </CardContent>
       <CardFooter className="p-4">
-        <Button
-          className="w-full transition-colors duration-300 ease-in-out hover:bg-accent hover:text-accent-foreground"
-          onClick={() => addToCart(product)}
-        >
-          <ShoppingCart size={18} className="mr-2" /> Add to Cart
-        </Button>
+        {!isAdmin && (
+          <Button
+            className="w-full transition-colors duration-300 ease-in-out hover:bg-accent hover:text-accent-foreground"
+            onClick={() => addToCart(product)}
+            disabled={!product.stock || product.stock < 1}
+          >
+            <ShoppingCart size={18} className="mr-2" />
+            {!product.stock || product.stock < 1 ? 'Agotado' : 'Añadir al Carrito'}
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
 }
 
-export default memo(ProductCardComponent);
+export default ProductCardComponent;

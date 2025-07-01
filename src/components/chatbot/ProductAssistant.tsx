@@ -1,7 +1,7 @@
 
 "use client";
 
-import { askProductAssistant } from '@/ai/flows/product-assistant-flow';
+import { askProductAssistant, type ChatMessage as BackendChatMessage } from '@/ai/flows/product-assistant-flow';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -9,6 +9,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { MessageSquare, Send, Loader2, Bot, User, X } from 'lucide-react';
 import React, { useState, useRef, useEffect } from 'react';
+import { useAppContext } from '@/contexts/AppContext';
+import { getProductByIdFromDB, Product } from '@/lib/data';
 
 interface ChatMessage {
   id: string;
@@ -25,6 +27,7 @@ export default function ProductAssistant() {
   ]);
   const [isBotLoading, setIsBotLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const { addMultipleToCart } = useAppContext();
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -40,6 +43,14 @@ export default function ProductAssistant() {
       sender: 'user',
       text: inputValue.trim(),
     };
+
+    const historyForBackend: BackendChatMessage[] = messages
+      .filter(msg => !msg.isLoading)
+      .map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        content: msg.text
+      }));
+
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsBotLoading(true);
@@ -54,7 +65,30 @@ export default function ProductAssistant() {
     setMessages(prev => [...prev, loadingBotMessage]);
 
     try {
-      const botResponse = await askProductAssistant({ query: userMessage.text });
+      const botResponse = await askProductAssistant({
+        query: userMessage.text,
+        history: historyForBackend,
+      });
+
+      if (botResponse.actions && botResponse.actions.length > 0) {
+        const cartActions = botResponse.actions.filter(a => a.action === 'addToCart');
+        if (cartActions.length > 0) {
+            const productsToAdd: { product: Product; quantity: number }[] = [];
+            await Promise.all(cartActions.map(async (action) => {
+                const productData = await getProductByIdFromDB(action.productId);
+                if (productData) {
+                    productsToAdd.push({ product: productData, quantity: action.quantity });
+                } else {
+                    console.error(`Chatbot action failed: Product with ID ${action.productId} not found.`);
+                }
+            }));
+            
+            if (productsToAdd.length > 0) {
+                addMultipleToCart(productsToAdd);
+            }
+        }
+      }
+
       const finalBotMessage: ChatMessage = {
         id: loadingBotMessageId,
         sender: 'bot',
@@ -160,4 +194,3 @@ export default function ProductAssistant() {
     </Popover>
   );
 }
-

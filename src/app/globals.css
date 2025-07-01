@@ -52,9 +52,6 @@
     --sidebar-ring: 181 100% 74%;
   }
 
-  /* The .dark class can be a duplicate of :root if the app is always dark,
-     or define an alternative dark theme if toggling is intended.
-     Forcing a single dark theme as per prompt. */
   .dark {
     --background: 232 14% 21%;
     --foreground: 210 40% 98%;
@@ -85,19 +82,19 @@
     --sidebar-border: 232 14% 25%;
     --sidebar-ring: 181 100% 74%;
   }
-}
 
-@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+  
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
-    /* Apply Inter font by default to body */
     font-family: var(--font-inter), sans-serif;
   }
   h1, h2, h3, h4, h5, h6 {
-    /* Apply Space Grotesk to headlines */
     font-family: var(--font-space-grotesk), sans-serif;
   }
 }

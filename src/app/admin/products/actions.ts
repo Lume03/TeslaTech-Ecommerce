@@ -2,8 +2,8 @@
 "use server";
 
 import { z } from 'zod';
-import { firestore, configComplete } from '@/lib/firebase/config'; // Added configComplete
-import { collection, addDoc, updateDoc, doc, serverTimestamp, deleteDoc, getDoc } from 'firebase/firestore';
+import { getFirestoreAdmin } from '@/lib/firebase/admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import { categories } from '@/lib/data';
 import { revalidatePath } from 'next/cache';
 
@@ -238,11 +238,8 @@ function prepareProductData(data: ProductActionData, categorySlug: string) {
 
 
 export async function createProduct(formData: ProductActionData) {
-  if (!configComplete || !firestore) {
-    console.error("Firestore is not configured. Cannot create product.");
-    return { success: false, error: "Error interno del servidor: Firestore no configurado." };
-  }
   try {
+    const firestore = getFirestoreAdmin();
     const validatedData = productActionSchema.safeParse(formData);
     if (!validatedData.success) {
       console.error("Validation errors (server-side create):", JSON.stringify(validatedData.error.flatten().fieldErrors, null, 2));
@@ -256,10 +253,10 @@ export async function createProduct(formData: ProductActionData) {
     }
 
     const productToSave = prepareProductData(data, categoryDetail.slug);
-    (productToSave as any).createdAt = serverTimestamp();
-    (productToSave as any).updatedAt = serverTimestamp();
+    (productToSave as any).createdAt = FieldValue.serverTimestamp();
+    (productToSave as any).updatedAt = FieldValue.serverTimestamp();
     
-    await addDoc(collection(firestore, 'products'), productToSave);
+    await firestore.collection('products').add(productToSave);
 
     revalidatePath('/admin/products');
     revalidatePath('/products');
@@ -275,11 +272,8 @@ export async function createProduct(formData: ProductActionData) {
 }
 
 export async function updateProduct(productId: string, formData: ProductActionData) {
-  if (!configComplete || !firestore) {
-    console.error("Firestore is not configured. Cannot update product.");
-    return { success: false, error: "Error interno del servidor: Firestore no configurado." };
-  }
   try {
+    const firestore = getFirestoreAdmin();
     const validatedData = productActionSchema.safeParse(formData);
     if (!validatedData.success) {
       console.error("Validation errors (server-side update):", JSON.stringify(validatedData.error.flatten().fieldErrors, null, 2));
@@ -293,10 +287,10 @@ export async function updateProduct(productId: string, formData: ProductActionDa
     }
 
     const productToUpdate = prepareProductData(data, categoryDetail.slug);
-    (productToUpdate as any).updatedAt = serverTimestamp();
+    (productToUpdate as any).updatedAt = FieldValue.serverTimestamp();
     
-    const productRef = doc(firestore, 'products', productId);
-    await updateDoc(productRef, productToUpdate);
+    const productRef = firestore.collection('products').doc(productId);
+    await productRef.update(productToUpdate);
 
     revalidatePath('/admin/products');
     revalidatePath(`/products/${productId}`);
@@ -313,26 +307,23 @@ export async function updateProduct(productId: string, formData: ProductActionDa
 }
 
 export async function deleteProduct(productId: string) {
-  if (!configComplete || !firestore) {
-    console.error("Firestore is not configured. Cannot delete product.");
-    return { success: false, error: "Error interno del servidor: Firestore no configurado." };
-  }
   try {
+    const firestore = getFirestoreAdmin();
     if (!productId) {
       return { success: false, error: "ID de producto no válido." };
     }
 
-    const productRef = doc(firestore, 'products', productId);
-    const productSnap = await getDoc(productRef);
+    const productRef = firestore.collection('products').doc(productId);
+    const productSnap = await productRef.get();
 
-    if (!productSnap.exists()) {
+    if (!productSnap.exists) {
       return { success: false, error: "Producto no encontrado." };
     }
 
     const productData = productSnap.data();
     const categorySlug = productData?.categorySlug;
 
-    await deleteDoc(productRef);
+    await productRef.delete();
 
     revalidatePath('/admin/products');
     revalidatePath('/products');
@@ -348,10 +339,3 @@ export async function deleteProduct(productId: string) {
   }
 }
     
-
-    
-
-    
-
-    
-

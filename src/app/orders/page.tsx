@@ -187,7 +187,7 @@ function OrderCard({ order }: { order: Order }) {
                 height={80} 
                 className="rounded-md object-cover border"
                 data-ai-hint={`${item.categorySlug} product small`}
-                unoptimized 
+                unoptimized
               />
               <div className="flex-grow">
                 <Link href={`/products/${item.id}`} className="font-semibold hover:text-primary">{item.name}</Link>

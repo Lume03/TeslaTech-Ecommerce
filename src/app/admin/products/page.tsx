@@ -195,7 +195,7 @@ export default function AdminProductsPage() {
                     height={60} 
                     className="rounded-md object-cover"
                     data-ai-hint={`${product.categorySlug || 'product'} small`}
-                    unoptimized // <-- CAMBIO AÑADIDO
+                    unoptimized
                   />
                 </TableCell>
                 <TableCell className="font-medium max-w-[200px] truncate" title={product.name}>
@@ -254,7 +254,6 @@ export default function AdminProductsPage() {
               <PaginationItem>
                 <PaginationPrevious
                   onClick={() => handlePageChange(currentPage - 1)}
-                  // disabled={currentPage === 1} // Pagination component should handle this
                   className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
                 />
               </PaginationItem>
@@ -265,7 +264,6 @@ export default function AdminProductsPage() {
               <PaginationItem>
                 <PaginationNext
                   onClick={() => handlePageChange(currentPage + 1)}
-                  // disabled={currentPage === totalPages} // Pagination component should handle this
                   className={currentPage === totalPages ? "pointer-events-none opacity-50" : undefined}
                 />
               </PaginationItem>
@@ -300,5 +298,3 @@ export default function AdminProductsPage() {
     </div>
   );
 }
-
-    

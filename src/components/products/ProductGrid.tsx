@@ -2,7 +2,7 @@
 "use client";
 import type { Product } from '@/lib/data';
 import ProductCard from './ProductCard';
-import React from 'react'; // Import React for React.memo
+import React from 'react';
 
 interface ProductGridProps {
   products: Product[];
@@ -22,4 +22,4 @@ const ProductGridComponent = ({ products }: ProductGridProps) => {
   );
 }
 
-export default React.memo(ProductGridComponent);
+export default ProductGridComponent;

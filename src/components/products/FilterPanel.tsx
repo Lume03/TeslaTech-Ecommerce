@@ -399,5 +399,4 @@ const FilterPanelComponent = ({ products, onFilterChange, currentCategorySlug }:
   );
 }
 
-export default React.memo(FilterPanelComponent);
-
+export default FilterPanelComponent;

@@ -1,47 +1,48 @@
 
 "use client";
-import { getBestsellersFromDB, categories, Product } from '@/lib/data'; // Updated import
-import BestsellerShowcase from '@/components/products/BestsellerShowcase';
+import { categories, Product } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Star, ShoppingCart, Heart, Package } from 'lucide-react'; // Added Package icon
-import { useEffect, useState } from 'react';
-import { Skeleton } from '@/components/ui/skeleton'; // For loading state
+import { ArrowRight, Star, ShoppingCart, Heart, Package } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import dynamic from 'next/dynamic';
+
+// Dynamically import the BestsellerShowcase to code-split it and reduce the initial load.
+// Provide a skeleton component to show while it's loading.
+const BestsellerShowcase = dynamic(
+  () => import('@/components/products/BestsellerShowcase'),
+  { 
+    loading: () => <BestsellerSkeleton />,
+    ssr: false // The component fetches its own data client-side, so no need for SSR.
+  }
+);
+
+const BestsellerSkeleton = () => (
+  <section className="py-12">
+    <h2 className="text-3xl font-headline font-bold mb-8 text-center">Nuestros Más Vendidos</h2>
+    <div className="flex space-x-4 pb-4 overflow-x-auto">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="w-[280px] md:w-[300px] shrink-0 space-y-3">
+          <Skeleton className="h-[280px] w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ))}
+    </div>
+  </section>
+);
+
 
 export default function HomePage() {
-  const [bestsellers, setBestsellers] = useState<Product[]>([]);
-  const [loadingBestsellers, setLoadingBestsellers] = useState(true);
-
-  useEffect(() => {
-    const fetchBestsellers = async () => {
-      setLoadingBestsellers(true);
-      const products = await getBestsellersFromDB(8); // Fetch up to 8 bestsellers
-      setBestsellers(products);
-      setLoadingBestsellers(false);
-    };
-    fetchBestsellers();
-  }, []);
-
-  // Define some prominent categories to show (e.g., first 4 or handpicked)
   const prominentCategories = categories.slice(0, 4);
 
   return (
     <div className="space-y-16">
       {/* Hero Section */}
       <section className="relative text-center py-16 md:py-24 rounded-lg overflow-hidden bg-gradient-to-br from-primary/30 via-background to-background">
-         <div className="absolute inset-0 opacity-10">
-          <Image
-            src="https://placehold.co/1200x400/282A3A/7DF9FF.png?text=+"
-            alt="Tech background"
-            fill
-            className="object-cover"
-            data-ai-hint="abstract technology"
-            priority
-            unoptimized
-          />
-        </div>
         <div className="relative z-10 container mx-auto px-4">
           <h1 className="text-4xl md:text-6xl font-headline font-bold mb-6">
             Bienvenido a <span className="text-primary">Tesla</span>Tech
@@ -64,27 +65,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Bestseller Showcase */}
-      {loadingBestsellers ? (
-        <section className="py-12">
-          <h2 className="text-3xl font-headline font-bold mb-8 text-center">Nuestros Más Vendidos</h2>
-          <div className="flex space-x-4 pb-4 overflow-x-auto">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="w-[280px] md:w-[300px] shrink-0 space-y-3">
-                <Skeleton className="h-[280px] w-full" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : bestsellers.length > 0 ? (
-        <BestsellerShowcase products={bestsellers} />
-      ) : (
-        <p className="text-center text-muted-foreground py-10">No hay productos más vendidos para mostrar en este momento.</p>
-      )}
-
+      {/* Bestseller Showcase is now dynamically loaded */}
+      <BestsellerShowcase />
 
       {/* Categories Section */}
       <section className="py-12">

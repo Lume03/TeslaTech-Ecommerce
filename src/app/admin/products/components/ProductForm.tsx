@@ -17,7 +17,7 @@ import { Loader2, Save, UploadCloud, Trash2, LinkIcon } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useEffect, useState, useRef, useMemo } from 'react';
 import Image from 'next/image';
-import { storage, auth, configComplete } from '@/lib/firebase/config'; // Added configComplete
+import { storage, auth, configComplete } from '@/lib/firebase/config';
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription, FormMessage } from '@/components/ui/form';
 
@@ -410,7 +410,8 @@ export default function ProductForm({ initialData, productId, isEditing = false 
         return;
       }
       
-      if (!auth.currentUser) {
+      const user = auth.currentUser;
+      if (!user) {
           toast({ title: "Error de Autenticación", description: "No estás autenticado para subir imágenes.", variant: "destructive" });
           setIsProcessing(false);
           setIsUploading(false);
@@ -445,40 +446,33 @@ export default function ProductForm({ initialData, productId, isEditing = false 
       }
       setIsUploading(false);
     }
+
+    const normalizeUnit = (value: string | null | undefined, unit: string): string | null => {
+        if (!value || typeof value !== 'string') return null;
+        const trimmedValue = value.trim();
+        if (trimmedValue === '') return null;
+
+        // Handle special formats like "(2x8GB)" first
+        if (/\(.*\)/.test(trimmedValue)) {
+            return trimmedValue;
+        }
+
+        const numericPart = parseFloat(trimmedValue);
+        // If it's not a number (e.g., "7000MB/s"), or if it already has the unit, return as is.
+        if (isNaN(numericPart) || trimmedValue.toUpperCase().includes(unit.toUpperCase())) {
+            return trimmedValue;
+        }
+        
+        return `${numericPart}${unit}`;
+    };
     
-    let formattedGpuVram = data.gpu_vram;
-    if (data.category && categories.find(c=>c.name === data.category)?.slug === 'graphics-cards' && data.gpu_vram && /^\d+$/.test(data.gpu_vram.trim())) {
-        formattedGpuVram = data.gpu_vram.trim() + "GB";
-    }
-
-    let formattedRamSpeed = data.ram_speed;
-    if (data.category && categories.find(c=>c.name === data.category)?.slug === 'memory' && data.ram_speed && /^\d+$/.test(data.ram_speed.trim())) {
-        formattedRamSpeed = data.ram_speed.trim() + "MHz";
-    }
-    
-    let formattedRamCapacity = data.ram_capacity;
-    if (data.category && categories.find(c => c.name === data.category)?.slug === 'memory' && data.ram_capacity && /^\d+$/.test(data.ram_capacity.trim())) {
-        formattedRamCapacity = data.ram_capacity.trim() + "GB";
-    }
-
-    let formattedPsuPower = data.psu_power;
-    if (data.category && categories.find(c => c.name === data.category)?.slug === 'power-supplies' && data.psu_power && /^\d+$/.test(data.psu_power.trim())) {
-        formattedPsuPower = data.psu_power.trim() + "W";
-    }
-    
-    let formattedCoolingNoiseLevel = data.cooling_noise_level;
-    if (data.category && categories.find(c => c.name === data.category)?.slug === 'refrigeracion' && data.cooling_noise_level && /^\d+(\.\d+)?$/.test(data.cooling_noise_level.trim())) {
-        formattedCoolingNoiseLevel = data.cooling_noise_level.trim() + "dB";
-    }
-
-
     const dataToSubmit: ProductFormData = {
         ...data,
-        gpu_vram: formattedGpuVram, 
-        ram_speed: formattedRamSpeed,
-        ram_capacity: formattedRamCapacity,
-        psu_power: formattedPsuPower,
-        cooling_noise_level: formattedCoolingNoiseLevel,
+        gpu_vram: normalizeUnit(data.gpu_vram, 'GB'),
+        ram_speed: normalizeUnit(data.ram_speed, 'MHz'),
+        ram_capacity: normalizeUnit(data.ram_capacity, 'GB'),
+        psu_power: normalizeUnit(data.psu_power, 'W'),
+        cooling_noise_level: normalizeUnit(data.cooling_noise_level, 'dB'),
         image: finalImageUrl || null,
         rating: data.rating === null || data.rating === undefined ? null : Number(data.rating),
         brand: data.brand === '' ? null : data.brand,
@@ -611,13 +605,7 @@ export default function ProductForm({ initialData, productId, isEditing = false 
                     type="text" 
                     {...field} 
                     value={field.value || ''} 
-                    placeholder="Ej: 8, 12, 16"
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        if (/^\d*$/.test(val) || val === '' || val.toUpperCase().includes('GB')) {
-                            field.onChange(val);
-                        }
-                    }}
+                    placeholder="Ej: 8 o 8GB"
                   /></FormControl>
                   <FormDescription className="text-xs">Solo números (ej: 12). Se añadirá "GB" automáticamente.</FormDescription>
                   <FormMessage />
@@ -680,13 +668,7 @@ export default function ProductForm({ initialData, productId, isEditing = false 
                     type="text"
                     {...field} 
                     value={field.value || ''} 
-                    placeholder="Ej: 8, 16, 32"
-                    onChange={(e) => {
-                        const val = e.target.value;
-                         if (/^\d*$/.test(val) || val === '' || val.toUpperCase().includes('GB') || /^\(\d+x\d+GB\)$/i.test(val) ) {
-                            field.onChange(val);
-                        }
-                    }}
+                    placeholder="Ej: 16 o (2x8GB)"
                   /></FormControl>
                   <FormDescription className="text-xs min-h-[1rem]">Solo números (ej: 16). Se añadirá "GB" auto. Para kits: "(2x8GB)".</FormDescription>
                   <FormMessage />
@@ -699,13 +681,7 @@ export default function ProductForm({ initialData, productId, isEditing = false 
                     type="text" 
                     {...field} 
                     value={field.value || ''} 
-                    placeholder="Ej: 3200, 5200"
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        if (/^\d*$/.test(val) || val === '' || val.toUpperCase().includes('MHZ') || val.toUpperCase().includes('MT/S')) {
-                            field.onChange(val);
-                        }
-                    }}
+                    placeholder="Ej: 3200 o 3200MHz"
                   /></FormControl>
                   <FormDescription className="text-xs min-h-[1rem]">Solo números (ej: 3200). Se añadirá "MHz" auto.</FormDescription>
                   <FormMessage />
@@ -915,13 +891,7 @@ export default function ProductForm({ initialData, productId, isEditing = false 
                     type="text"
                     {...field} 
                     value={field.value || ''} 
-                    placeholder="Ej: 25"
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        if (/^\d*(\.\d*)?$/.test(val) || val === '' || val.toUpperCase().endsWith('DB')) {
-                            field.onChange(val);
-                        }
-                    }}
+                    placeholder="Ej: 25 o 25.5dB"
                   /></FormControl>
                   <FormDescription className="text-xs">Solo números (ej: 25). Se añadirá "dB" automáticamente.</FormDescription>
                   <FormMessage />
@@ -969,13 +939,7 @@ export default function ProductForm({ initialData, productId, isEditing = false 
                     type="text"
                     {...field} 
                     value={field.value || ''} 
-                    placeholder="Ej: 750"
-                     onChange={(e) => {
-                        const val = e.target.value;
-                        if (/^\d*$/.test(val) || val === '' || val.toUpperCase().endsWith('W')) {
-                            field.onChange(val);
-                        }
-                    }}
+                    placeholder="Ej: 750 o 750W"
                   /></FormControl>
                   <FormDescription className="text-xs">Solo números (ej: 750). Se añadirá "W" automáticamente.</FormDescription>
                   <FormMessage />
@@ -1089,5 +1053,3 @@ export default function ProductForm({ initialData, productId, isEditing = false 
   );
 }
     
-
-

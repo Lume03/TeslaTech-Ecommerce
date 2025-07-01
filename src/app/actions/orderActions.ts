@@ -1,13 +1,12 @@
 
-// Ruta: src/app/actions/orderActions.ts
-
 'use server';
 
-import adminDefault from '@/lib/firebase/admin'; 
+import { getInitializedAdminApp, getFirestoreAdmin } from '@/lib/firebase/admin';
 import type { App } from 'firebase-admin/app';
 import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 import type { Order, OrderItem, OrderStatus, ShippingAddress, PaymentDetails, Product } from '@/lib/data'; 
 import { revalidatePath } from 'next/cache';
+
 
 const actionLogPrefix = "OrderAction";
 
@@ -50,17 +49,15 @@ const safeProcessFeatures = (featuresInput: any): string[] => {
 export async function createOrderAction(
   orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt' | 'shippedAt'>
 ): Promise<{ success: boolean; orderId?: string; error?: string }> {
+  const firestoreService = getFirestoreAdmin();
   const actionName = `${actionLogPrefix}/createOrder`;
   console.log(`${actionName}: Server Action invoked for user ID: ${orderData.userId}`);
   
-  let firestoreService: Firestore;
   let adminApp: App;
 
   try {
-    console.log(`${actionName}: Attempting to get initialized Admin App and Firestore service.`);
-    const adminModule = await import('@/lib/firebase/admin');
-    adminApp = adminModule.getInitializedAdminApp();
-    firestoreService = adminModule.getFirestoreAdmin();
+    console.log(`${actionName}: Attempting to get initialized Admin App.`);
+    adminApp = getInitializedAdminApp();
 
     if (!adminApp) { 
       console.error(`${actionName}: CRITICAL - getInitializedAdminApp() returned null/undefined.`);
@@ -232,6 +229,7 @@ export async function createOrderAction(
  * Obtiene todas las órdenes de un usuario específico.
  */
 export async function getUserOrdersAction(userId: string): Promise<Order[]> {
+  const firestoreService = getFirestoreAdmin();
   const actionName = `${actionLogPrefix}/getUserOrders`;
   if (!userId) {
     console.log(`${actionName}: No se proporcionó un ID de usuario para buscar órdenes.`);
@@ -239,8 +237,6 @@ export async function getUserOrdersAction(userId: string): Promise<Order[]> {
   }
 
   try {
-    const adminModule = await import('@/lib/firebase/admin');
-    const firestoreService = adminModule.getFirestoreAdmin();
     console.log(`${actionName}: Attempting to fetch orders for user ID: ${userId}`);
     const ordersCol = firestoreService.collection('orders');
     const q = ordersCol
@@ -332,10 +328,9 @@ export async function getUserOrdersAction(userId: string): Promise<Order[]> {
  * Obtiene TODAS las órdenes para el panel de administración.
  */
 export async function getAllOrdersAdminAction(): Promise<Order[]> {
+  const firestoreService = getFirestoreAdmin();
   const actionName = `${actionLogPrefix}/getAllOrdersAdmin`;
   try {
-    const adminModule = await import('@/lib/firebase/admin');
-    const firestoreService = adminModule.getFirestoreAdmin();
     console.log(`${actionName}: Attempting to fetch all orders for admin...`);
     const ordersCol = firestoreService
       .collection('orders')
@@ -429,6 +424,7 @@ export async function updateOrderStatusAdminAction(
   orderId: string, 
   newStatus: OrderStatus
 ): Promise<{ success: boolean; error?: string }> {
+  const firestoreService = getFirestoreAdmin();
   const actionName = `${actionLogPrefix}/updateOrderStatusAdmin`;
   if (!orderId || !newStatus) {
     return { 
@@ -438,8 +434,6 @@ export async function updateOrderStatusAdminAction(
   }
 
   try {
-    const adminModule = await import('@/lib/firebase/admin');
-    const firestoreService = adminModule.getFirestoreAdmin();
     console.log(`${actionName}: Attempting to update order ${orderId} to status ${newStatus}`);
     const orderRef = firestoreService.collection('orders').doc(orderId);
     
@@ -468,4 +462,3 @@ export async function updateOrderStatusAdminAction(
     };
   }
 }
-

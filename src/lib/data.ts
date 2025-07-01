@@ -1,9 +1,7 @@
 
-import { firestore, configComplete } from '@/lib/firebase/config'; // Added configComplete
-import { collection, doc, getDoc, getDocs, query, where, limit, orderBy } from 'firebase/firestore';
-// Removed: import type { Timestamp } from 'firebase-admin/firestore'; // No longer directly needed for Order interface client-side
+import { firestore, configComplete } from '@/lib/firebase/config';
+import { collection, doc, getDoc, getDocs, query, where, limit, orderBy, documentId } from 'firebase/firestore';
 import type { CartItem, UserProfile as AppUserProfile } from '@/contexts/AppContext';
-
 
 // Define Product interface
 export interface Product {
@@ -70,6 +68,18 @@ export interface Product {
   psu_power?: string; // Ej: "750W"
 }
 
+export interface FirestoreUser {
+  displayName?: string | null;
+  email?: string | null;
+  photoURL?: string | null;
+  isAdmin?: boolean;
+  dni?: string | null;
+  metadata?: { creationTime?: string | null; lastSignInTime?: string | null; } | null;
+  // Using 'any' for timestamps initially as they might be firebase.firestore.Timestamp
+  createdAt?: any; 
+  updatedAt?: any;
+}
+
 // Categories can remain local as they are fairly static UI data
 export const categories = [
   { id: 'processors', name: 'Procesadores', slug: 'processors' },
@@ -108,16 +118,14 @@ export const getAllProductsFromDB = async (): Promise<Product[]> => {
   }
   try {
     const snapshot = await getDocs(productsCol);
-    if (snapshot.empty) {
-      // console.log('No products found in Firestore.'); // Less noisy for normal operation
-      return [];
-    }
-    return snapshot.docs.map(mapDocToProduct);
+    const products = snapshot.empty ? [] : snapshot.docs.map(mapDocToProduct);
+    return products;
   } catch (error) {
     console.error("Error fetching all products:", error);
     return [];
   }
 };
+
 
 export const getProductByIdFromDB = async (productId: string): Promise<Product | null> => {
   if (!configComplete || !firestore) {
@@ -134,7 +142,6 @@ export const getProductByIdFromDB = async (productId: string): Promise<Product |
     if (docSnap.exists()) {
       return mapDocToProduct(docSnap);
     } else {
-      // console.log(`No product found with ID: ${productId}`);
       return null;
     }
   } catch (error) {
@@ -157,7 +164,6 @@ export const getProductsByCategorySlugFromDB = async (categorySlug: string): Pro
     const categoryQuery = query(productsCol, where('categorySlug', '==', categorySlug));
     const snapshot = await getDocs(categoryQuery);
     if (snapshot.empty) {
-      // console.log(`No products found for category slug: ${categorySlug}`);
       return [];
     }
     return snapshot.docs.map(mapDocToProduct);
@@ -181,7 +187,6 @@ export const getBestsellersFromDB = async (count: number = 8): Promise<Product[]
     );
     const snapshot = await getDocs(bestsellerQuery);
     if (snapshot.empty) {
-      // console.log('No bestseller products found.');
       return [];
     }
     return snapshot.docs.map(mapDocToProduct);
@@ -190,6 +195,32 @@ export const getBestsellersFromDB = async (count: number = 8): Promise<Product[]
     return [];
   }
 };
+
+export const getProductsByIdsFromDB = async (productIds: string[]): Promise<Product[]> => {
+  const productsCol = productsCollectionRef();
+  if (!productsCol || productIds.length === 0) {
+    return [];
+  }
+  
+  const fetchedProducts: Product[] = [];
+  // Firestore 'in' query is limited to 30 elements. Chunk the array.
+  const chunkSize = 30;
+  for (let i = 0; i < productIds.length; i += chunkSize) {
+    const chunk = productIds.slice(i, i + chunkSize);
+    try {
+      const q = query(productsCol, where(documentId(), 'in', chunk));
+      const snapshot = await getDocs(q);
+      const products = snapshot.docs.map(mapDocToProduct);
+      fetchedProducts.push(...products);
+    } catch (error) {
+      console.error(`Error fetching product chunk:`, error);
+    }
+  }
+  // The fetched products might not be in the same order as productIds, but that's okay
+  // for our use case as we'll build a map from them.
+  return fetchedProducts;
+};
+
 
 // --- Order Data Structures ---
 export type OrderStatus =
@@ -228,12 +259,7 @@ export interface ShippingAddress {
 export interface PaymentDetails {
   gateway: 'mercadopago' | 'stripe'; // To know which gateway processed it
   paymentId: string | null; // MercadoPago payment_id or Stripe PaymentIntent ID
-  preferenceId?: string | null; // MercadoPago preference_id (optional as it's MP specific)
   status: string | null; // 'approved', 'succeeded', 'pending', 'failed', etc.
-  paymentMethodId?: string | null; // e.g., 'visa', 'mastercard' from gateway
-  paymentTypeId?: string | null; // e.g., 'credit_card' from gateway
-  externalReference?: string | null; // If you used one
-  stripeSessionId?: string | null; // Specific for Stripe, if you want to store it
 }
 
 export interface Order {
@@ -246,10 +272,29 @@ export interface Order {
   orderStatus: OrderStatus;
   shippingAddress: ShippingAddress;
   paymentDetails: PaymentDetails;
-  createdAt: Date; // Changed from Timestamp
-  updatedAt: Date; // Changed from Timestamp
-  shippedAt?: Date | null; // Changed from Timestamp
+  createdAt: Date;
+  updatedAt: Date;
+  shippedAt?: Date | null;
 }
+
+// --- Complaint Data Structure ---
+export interface Complaint {
+  id?: string; // Firestore will add this
+  fullName: string;
+  documentType: string;
+  documentNumber: string;
+  address: string;
+  email: string;
+  phone: string;
+  guardianName?: string;
+  itemType: string;
+  itemDescription: string;
+  complaintType: string;
+  complaintDetails: string;
+  createdAt: any; // Will be a server timestamp client-side, Date object when read
+}
+
+
 export const mapDocToOrder = (documentSnapshot: any): Order => {
   const data = documentSnapshot.data();
   return {

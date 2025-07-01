@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, UserCircle, Save } from 'lucide-react';
+import { Loader2, UserCircle, Save, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 
 const profileSchema = z.object({
@@ -27,7 +27,7 @@ const profileSchema = z.object({
 type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function ProfilePage() {
-  const { currentUser, userProfile, loadingAuth, updateUserProfile, isProfileComplete } = useAppContext();
+  const { currentUser, userProfile, loadingAuth, updateUserProfile, isProfileComplete, isAdmin } = useAppContext();
   const router = useRouter();
 
   const { control, handleSubmit, reset, formState: { errors, isSubmitting, isDirty } } = useForm<ProfileFormData>({
@@ -69,6 +69,19 @@ export default function ProfilePage() {
       </div>
     );
   }
+  
+  if (isAdmin) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <ShieldAlert className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+        <h1 className="text-3xl font-headline font-bold mb-4">Acceso Restringido</h1>
+        <p className="text-muted-foreground mb-6">Los administradores no tienen una página de perfil de cliente.</p>
+        <Link href="/admin" passHref>
+          <Button size="lg">Ir al Panel de Administración</Button>
+        </Link>
+      </div>
+    );
+  }
 
   if (!currentUser || !userProfile) {
      return (
@@ -93,7 +106,7 @@ export default function ProfilePage() {
             {userProfile.photoURL ? (
               <AvatarImage src={userProfile.photoURL} alt={userProfile.displayName || 'User Avatar'} />
             ) : (
-               <AvatarImage src={`https://placehold.co/96x96/7DF9FF/282A3A.png?text=${userProfile.displayName ? userProfile.displayName.charAt(0).toUpperCase() : 'U'}`} alt={userProfile.displayName || 'User Avatar'} data-ai-hint="user avatar" />
+ <AvatarImage src={`https://placehold.co/96x96/7DF9FF/282A3A.png?text=${userProfile.displayName ? userProfile.displayName.charAt(0).toUpperCase() : 'U'}`} alt={userProfile.displayName || 'User Avatar'} data-ai-hint="user avatar" />
             )}
             <AvatarFallback className="text-3xl">{userProfile.displayName ? userProfile.displayName.charAt(0).toUpperCase() : 'U'}</AvatarFallback>
           </Avatar>

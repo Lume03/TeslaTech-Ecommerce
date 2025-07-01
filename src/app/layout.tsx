@@ -6,8 +6,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { AppProviders } from './providers';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import ProductAssistant from '@/components/chatbot/ProductAssistant'; // Import the chatbot
 import { cn } from '@/lib/utils';
+import ClientChatbot from '@/components/chatbot/ClientChatbot';
 
 // Using next/font for Inter and Space Grotesk
 const fontInter = FontInter({
@@ -24,6 +24,7 @@ const fontSpaceGrotesk = FontSpaceGrotesk({
 export const metadata: Metadata = {
   title: 'TeslaTech - Powering Your Digital World',
   description: 'Discover the latest in tech components and peripherals at TeslaTech.',
+  icons: null,
 };
 
 export default function RootLayout({
@@ -49,7 +50,7 @@ export default function RootLayout({
             </main>
             <Footer />
           </div>
-          <ProductAssistant /> {/* Add the chatbot here */}
+          <ClientChatbot />
           <Toaster />
         </AppProviders>
       </body>
