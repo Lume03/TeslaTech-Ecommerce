@@ -214,15 +214,15 @@ const productAssistantFlow = ai.defineFlow(
     outputSchema: ProductAssistantFlowOutputSchema,
   },
   async (input) => {
-    const firestore = getFirestoreAdmin();
-    const productsSnapshot = await firestore.collection('products').get();
-    const allProductsData: Product[] = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-
-    if (!allProductsData || allProductsData.length === 0) {
-      return { response: "Lo siento, parece que no tengo información de productos disponible en este momento. ¡Intentaré tenerla lista pronto!" };
-    }
-
     try {
+      const firestore = getFirestoreAdmin();
+      const productsSnapshot = await firestore.collection('products').get();
+      const allProductsData: Product[] = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+
+      if (!allProductsData || allProductsData.length === 0) {
+        return { response: "Lo siento, parece que no tengo información de productos disponible en este momento. ¡Intentaré tenerla lista pronto!", actions: [] };
+      }
+
       const { output } = await productPrompt({
         query: input.query,
         products: allProductsData,
@@ -243,7 +243,7 @@ const productAssistantFlow = ai.defineFlow(
       };
 
     } catch (error: any) {
-      console.error("Error in productAssistantFlow calling Genkit:", error);
+      console.error("Error in productAssistantFlow:", error);
       
       const errorMessage = String(error.message || '').toLowerCase();
       const errorStatus = error.status;
@@ -252,6 +252,14 @@ const productAssistantFlow = ai.defineFlow(
       if (errorStatus === 429 || errorMessage.includes('429') || errorMessage.includes('too many requests') || errorMessage.includes('quota')) {
           return { 
               response: "¡Vaya! Parece que nuestro asistente de IA está muy solicitado en este momento. Hemos alcanzado nuestro límite de consultas por hoy. Por favor, inténtalo de nuevo mañana.",
+              actions: []
+          };
+      }
+      
+      // Check for Firestore-related issues
+      if (errorMessage.includes('firestore') && (errorMessage.includes('permission') || errorMessage.includes('index'))) {
+          return {
+              response: "Lo siento, estoy teniendo problemas para acceder a la base de datos de productos en este momento. Nuestro equipo técnico ya fue notificado.",
               actions: []
           };
       }
