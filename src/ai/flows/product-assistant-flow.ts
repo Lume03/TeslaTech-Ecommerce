@@ -175,7 +175,6 @@ Productos Disponibles:
   Nombre: {{this.name}}
   Categoría: {{this.category}}
   Precio: S/{{this.price}}
-  Descripción: {{this.description}}
   {{#if this.brand}}Marca: {{this.brand}}{{/if}}
   {{#if this.gpuChipset}}Chipset GPU: {{this.gpuChipset}}{{/if}}
   {{#if this.mobo_socket}}Socket Placa: {{this.mobo_socket}}{{/if}}
@@ -184,12 +183,6 @@ Productos Disponibles:
   {{#if this.ram_type}}Tipo RAM: {{this.ram_type}}{{/if}}
   {{#if this.stock}}Stock: {{this.stock}} unidades disponibles{{else}}Stock: Agotado{{/if}}
   {{#if this.rating}}Calificación: {{this.rating}} / 5{{/if}}
-  {{#if this.features}}
-  Características:
-    {{#each this.features}}
-    - {{{this}}}
-    {{/each}}
-  {{/if}}
 {{/each}}
 
 {{#if history}}
@@ -223,9 +216,28 @@ const productAssistantFlow = ai.defineFlow(
         return { response: "Lo siento, parece que no tengo información de productos disponible en este momento. ¡Intentaré tenerla lista pronto!", actions: [] };
       }
 
+      // Create a lightweight version of products for the prompt to save memory and context size.
+      const productsForPrompt = allProductsData.map(p => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        price: p.price,
+        stock: p.stock,
+        brand: p.brand,
+        rating: p.rating,
+        // Compatibility fields are important for the AI to make good recommendations.
+        gpuChipset: p.gpuChipset,
+        processor_socket: p.processor_socket,
+        mobo_socket: p.mobo_socket,
+        ram_type: p.ram_type,
+        mobo_ram_type: p.mobo_ram_type,
+        // Explicitly exclude large, unneeded fields like description and features.
+        // The Zod schema has these as optional, so this is valid.
+      }));
+
       const { output } = await productPrompt({
         query: input.query,
-        products: allProductsData,
+        products: productsForPrompt as any, // Cast to any to satisfy schema while sending lightweight data
         history: input.history,
       });
 
