@@ -63,7 +63,7 @@ const FooterComponent = () => {
            {/* Column 4: Libro de Reclamaciones */}
           <div className="space-y-4">
              <Link href="/complaints-book">
-                 <Image src="/images/libro_reclamaciones.webp" alt="Libro de Reclamaciones Virtual" width={184} height={68} unoptimized />
+                 <Image src="https://placehold.co/184x68/282a3a/ffffff.png?text=Libro+de+Reclamaciones" alt="Libro de Reclamaciones Virtual" width={184} height={68} unoptimized />
              </Link>
           </div>
 
