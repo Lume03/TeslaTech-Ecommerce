@@ -290,6 +290,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Configuración Incompleta", description: "Los servicios de Firebase no están disponibles.", variant: "destructive" });
       return false;
     }
+    
+    // Centralize admin login logic here
     const emailToLogin = email.toLowerCase() === 'admin' ? ADMIN_EMAIL : email;
     
     try {
@@ -299,6 +301,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       console.error("Error signing in with email/password:", error);
       let errorMessage = "Ocurrió un error inesperado. Por favor, intente de nuevo.";
+      
       switch (error.code) {
         case 'auth/user-not-found':
         case 'auth/wrong-password':
@@ -311,10 +314,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         case 'auth/too-many-requests':
           errorMessage = 'Acceso deshabilitado temporalmente debido a demasiados intentos fallidos. Intente más tarde.';
           break;
-        case 'auth/email-already-in-use':
-          errorMessage = 'Este correo electrónico ya está en uso. Intenta iniciar sesión.';
-          break;
         default:
+          // Keep the generic message for other unexpected errors
           break;
       }
       
