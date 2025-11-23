@@ -216,28 +216,9 @@ const productAssistantFlow = ai.defineFlow(
         return { response: "Lo siento, parece que no tengo información de productos disponible en este momento. ¡Intentaré tenerla lista pronto!", actions: [] };
       }
 
-      // Create a lightweight version of products for the prompt to save memory and context size.
-      const productsForPrompt = allProductsData.map(p => ({
-        id: p.id,
-        name: p.name,
-        category: p.category,
-        price: p.price,
-        stock: p.stock,
-        brand: p.brand,
-        rating: p.rating,
-        // Compatibility fields are important for the AI to make good recommendations.
-        gpuChipset: p.gpuChipset,
-        processor_socket: p.processor_socket,
-        mobo_socket: p.mobo_socket,
-        ram_type: p.ram_type,
-        mobo_ram_type: p.mobo_ram_type,
-        // Explicitly exclude large, unneeded fields like description and features.
-        // The Zod schema has these as optional, so this is valid.
-      }));
-
       const { output } = await productPrompt({
         query: input.query,
-        products: productsForPrompt as any, // Cast to any to satisfy schema while sending lightweight data
+        products: allProductsData, 
         history: input.history,
       });
 
@@ -257,29 +238,25 @@ const productAssistantFlow = ai.defineFlow(
     } catch (error: any) {
       console.error("Error in productAssistantFlow:", error);
       
+      // Default error message for unexpected issues
+      let userFacingError = "Lo siento, he encontrado un error inesperado al procesar tu solicitud. Nuestro equipo técnico ha sido notificado. Por favor, inténtalo de nuevo más tarde.";
+
       const errorMessage = String(error.message || '').toLowerCase();
       const errorStatus = error.status;
 
       // Check for rate limit error (429) or quota issues
       if (errorStatus === 429 || errorMessage.includes('429') || errorMessage.includes('too many requests') || errorMessage.includes('quota')) {
-          return { 
-              response: "¡Vaya! Parece que nuestro asistente de IA está muy solicitado en este momento. Hemos alcanzado nuestro límite de consultas por hoy. Por favor, inténtalo de nuevo mañana.",
-              actions: []
-          };
+          userFacingError = "¡Vaya! Parece que nuestro asistente de IA está muy solicitado en este momento. Hemos alcanzado nuestro límite de consultas por hoy. Por favor, inténtalo de nuevo mañana.";
       }
       
       // Check for Firestore-related issues
-      if (errorMessage.includes('firestore') && (errorMessage.includes('permission') || errorMessage.includes('index'))) {
-          return {
-              response: "Lo siento, estoy teniendo problemas para acceder a la base de datos de productos en este momento. Nuestro equipo técnico ya fue notificado.",
-              actions: []
-          };
+      else if (errorMessage.includes('firestore') && (errorMessage.includes('permission') || errorMessage.includes('index'))) {
+          userFacingError = "Lo siento, estoy teniendo problemas para acceder a la base de datos de productos en este momento. Nuestro equipo técnico ya fue notificado.";
       }
 
-      // Generic error for other issues
       return {
-          response: "Lo siento, he encontrado un error inesperado al procesar tu solicitud. Nuestro equipo técnico ha sido notificado. Por favor, inténtalo de nuevo más tarde.",
-          actions: []
+        response: userFacingError,
+        actions: []
       };
     }
   }
