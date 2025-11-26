@@ -1,5 +1,5 @@
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import type { Genkit } from 'genkit';
 import { EventEmitter } from 'events';
 
@@ -16,7 +16,7 @@ function getAiInstance(): Genkit {
   if (!aiInstance) {
     aiInstance = genkit({
       plugins: [googleAI()],
-      model: 'googleai/gemini-1.5-flash-latest',
+      model: 'googleai/gemini-2.5-flash',
     });
   }
   return aiInstance;
