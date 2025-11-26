@@ -33,10 +33,10 @@ export async function createStripeCheckoutSession(items: CartItem[], payerData?:
 
   const stripe = new Stripe(stripeSecretKey, { apiVersion: '2024-04-10' }); 
 
-  // Use VERCEL_URL if available (for preview deployments), otherwise use NEXT_PUBLIC_BASE_URL, finally fallback to production URL
+  // Use VERCEL_URL if available (for preview/prod deployments on Vercel), otherwise fallback to the specific production URL or localhost.
   const isProduction = process.env.NODE_ENV === 'production';
   let rawBaseUrl = isProduction 
-    ? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://teslatech-tna5j.web.app')
+    ? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://tesla-tech-ecommerce.vercel.app')
     : (process.env.NEXT_PUBLIC_BASE_URL?.trim() || 'http://localhost:3000');
 
 
