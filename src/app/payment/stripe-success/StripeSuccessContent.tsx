@@ -16,26 +16,40 @@ import type { OrderStatus, ShippingAddress, PaymentDetails } from '@/lib/data';
 export default function StripeSuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
-  const { currentUser, userProfile, cart, getCartTotal, clearCart } = useAppContext();
+  const { currentUser, userProfile, loadingAuth, cart, getCartTotal, clearCart } = useAppContext();
   const { toast } = useToast();
 
   const [orderCreationStatus, setOrderCreationStatus] = useState<'idle' | 'creating' | 'success' | 'error'>('idle');
-  const [orderMessage, setOrderMessage] = useState('');
+  const [orderMessage, setOrderMessage] = useState('Verificando pago...');
 
   useEffect(() => {
-    // Prevent running multiple times
-    if (orderCreationStatus !== 'idle') return;
-    
-    // Essential data must be present
-    if (!sessionId || !currentUser || !userProfile || cart.length === 0) {
-      if (cart.length === 0 && orderCreationStatus === 'idle') {
-        // This likely means the page was reloaded after a successful order.
-        setOrderCreationStatus('success');
-        setOrderMessage('Pago procesado. El pedido ya ha sido creado.');
-      } else if (!sessionId){
+    // 1. Do not run if already processed or essential data is missing on first load.
+    if (orderCreationStatus !== 'idle' || !sessionId) {
+      if (!sessionId) {
         setOrderCreationStatus('error');
         setOrderMessage('Falta el ID de sesión de Stripe. No se puede crear el pedido.');
       }
+      return;
+    }
+
+    // 2. Wait until authentication is fully resolved.
+    if (loadingAuth) {
+      setOrderMessage('Validando sesión de usuario...');
+      return; // Wait for the next effect trigger when loadingAuth is false
+    }
+
+    // 3. User must be logged in with a profile.
+    if (!currentUser || !userProfile) {
+      setOrderCreationStatus('error');
+      setOrderMessage('Error: No se encontró la sesión de usuario. El pedido no pudo ser creado.');
+      return;
+    }
+
+    // 4. If cart is empty, order was likely already processed (e.g., page refresh).
+    // This check is crucial and should come after the user check.
+    if (cart.length === 0) {
+      setOrderCreationStatus('success');
+      setOrderMessage('Pago procesado. El pedido ya ha sido creado.');
       return;
     }
 
@@ -56,7 +70,7 @@ export default function StripeSuccessContent() {
         const paymentDetails: PaymentDetails = {
           gateway: 'stripe',
           paymentId: sessionId,
-          status: 'succeeded', // Assuming success if on this page
+          status: 'succeeded',
         };
         
         const orderData = {
@@ -90,9 +104,10 @@ export default function StripeSuccessContent() {
       }
     };
 
+    // All checks passed, proceed to create the order.
     processOrder();
 
-  }, [sessionId, currentUser, userProfile, cart, getCartTotal, clearCart, toast, orderCreationStatus]);
+  }, [sessionId, currentUser, userProfile, cart, getCartTotal, clearCart, toast, orderCreationStatus, loadingAuth]);
 
   
   return (
@@ -106,7 +121,7 @@ export default function StripeSuccessContent() {
          orderCreationStatus === 'error' ? 'Error en el Pedido' : 'Procesando...'}
       </h1>
       <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-        {orderMessage || 'Verificando tu pago con Stripe...'}
+        {orderMessage}
       </p>
       
       <div className="space-x-4">
