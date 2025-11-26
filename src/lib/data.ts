@@ -1,4 +1,5 @@
 
+
 import { firestore, configComplete } from '@/lib/firebase/config';
 import { collection, doc, getDoc, getDocs, query, where, limit, orderBy, documentId } from 'firebase/firestore';
 import type { CartItem, UserProfile as AppUserProfile } from '@/contexts/AppContext';
@@ -313,3 +314,11 @@ export const buildShippingAddressFromProfile = (profile: AppUserProfile | null):
     email: profile?.email || null,
   };
 };
+
+// This function is no longer needed as the data is fetched directly
+// from Firestore. It's kept here for historical reference but can be removed.
+export const getProducts = (): Product[] => {
+    // This is now a deprecated function, returning an empty array.
+    // All product data fetching is done via async functions that hit Firestore.
+    return [];
+}
