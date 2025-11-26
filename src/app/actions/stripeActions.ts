@@ -33,21 +33,21 @@ export async function createStripeCheckoutSession(items: CartItem[], payerData?:
 
   const stripe = new Stripe(stripeSecretKey, { apiVersion: '2024-04-10' }); 
 
+  // Use VERCEL_URL if available (for preview deployments), otherwise use NEXT_PUBLIC_BASE_URL, finally fallback to production URL
   const isProduction = process.env.NODE_ENV === 'production';
-  let rawBaseUrl = isProduction
-    ? 'https://teslatech-tna5j.web.app' 
-    : process.env.NEXT_PUBLIC_BASE_URL?.trim();
+  let rawBaseUrl = isProduction 
+    ? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://teslatech-tna5j.web.app')
+    : (process.env.NEXT_PUBLIC_BASE_URL?.trim() || 'http://localhost:3000');
+
 
   if (!rawBaseUrl) {
-    console.error("CRITICAL: NEXT_PUBLIC_BASE_URL is not configured or is empty. Stripe callbacks will fail.");
-    return { success: false, error: "La URL base (NEXT_PUBLIC_BASE_URL o de producción) no está configurada o está vacía." };
+    console.error("CRITICAL: Base URL for Stripe is not configured. Deployments will fail. Set NEXT_PUBLIC_BASE_URL for local dev or VERCEL_URL for production.");
+    return { success: false, error: "La URL base (NEXT_PUBLIC_BASE_URL o VERCEL_URL) no está configurada o está vacía." };
   }
   
-  // Explicit check for placeholder value
-  if (rawBaseUrl.includes("your-workstation-id") || rawBaseUrl.includes("localhost:0000")) {
+  // Explicit check for placeholder value in local development
+  if (!isProduction && (rawBaseUrl.includes("your-workstation-id") || rawBaseUrl.includes("localhost:0000"))) {
      console.error(`CRITICAL WARNING: NEXT_PUBLIC_BASE_URL seems to be set to a placeholder value: "${rawBaseUrl}". Please configure it with your actual public application URL for Stripe callbacks to work.`);
-     // Optionally, you could throw an error here or return a specific error to prevent proceeding.
-     // For now, we'll let it try, but it will likely fail on redirect.
   }
 
 

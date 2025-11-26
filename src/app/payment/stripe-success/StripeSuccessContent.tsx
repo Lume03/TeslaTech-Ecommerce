@@ -1,3 +1,4 @@
+
 // Ruta: src/app/payment/stripe-success/StripeSuccessContent.tsx
 
 "use client";
@@ -22,8 +23,20 @@ export default function StripeSuccessContent() {
   const [orderMessage, setOrderMessage] = useState('');
 
   useEffect(() => {
-    if (orderCreationStatus !== 'idle' || !sessionId || !currentUser || !userProfile || cart.length === 0) {
-      return; 
+    // Prevent running multiple times
+    if (orderCreationStatus !== 'idle') return;
+    
+    // Essential data must be present
+    if (!sessionId || !currentUser || !userProfile || cart.length === 0) {
+      if (cart.length === 0 && orderCreationStatus === 'idle') {
+        // This likely means the page was reloaded after a successful order.
+        setOrderCreationStatus('success');
+        setOrderMessage('Pago procesado. El pedido ya ha sido creado.');
+      } else if (!sessionId){
+        setOrderCreationStatus('error');
+        setOrderMessage('Falta el ID de sesión de Stripe. No se puede crear el pedido.');
+      }
+      return;
     }
 
     const processOrder = async () => {
@@ -43,7 +56,7 @@ export default function StripeSuccessContent() {
         const paymentDetails: PaymentDetails = {
           gateway: 'stripe',
           paymentId: sessionId,
-          status: 'succeeded',
+          status: 'succeeded', // Assuming success if on this page
         };
         
         const orderData = {
@@ -81,7 +94,7 @@ export default function StripeSuccessContent() {
 
   }, [sessionId, currentUser, userProfile, cart, getCartTotal, clearCart, toast, orderCreationStatus]);
 
-  // ... (El resto del return con el JSX para mostrar el estado se queda igual)
+  
   return (
     <div className="container mx-auto px-4 py-16 text-center">
       {orderCreationStatus === 'success' && <CheckCircle className="mx-auto h-20 w-20 text-green-500 mb-6" />}
@@ -105,4 +118,3 @@ export default function StripeSuccessContent() {
     </div>
   );
 }
-    
